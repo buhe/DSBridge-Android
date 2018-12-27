@@ -17,12 +17,12 @@ import android.support.v7.app.AlertDialog;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.ConsoleMessage;
 import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
-import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.PermissionRequest;
@@ -37,6 +37,12 @@ import android.widget.FrameLayout;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.xwalk.core.CustomViewCallback;
+import org.xwalk.core.JavascriptInterface;
+import org.xwalk.core.XWalkJavascriptResult;
+import org.xwalk.core.XWalkSettings;
+import org.xwalk.core.XWalkUIClient;
+import org.xwalk.core.XWalkView;
 
 import java.io.File;
 import java.lang.reflect.Method;
@@ -50,14 +56,14 @@ import java.util.Map;
  * Created by du on 16/12/29.
  */
 
-public class DWebView extends WebView {
+public class DWebView extends XWalkView {
     private static final String BRIDGE_NAME = "_dsbridge";
     private static final String LOG_TAG = "dsBridge";
     private static boolean isDebug = false;
     private Map<String, Object> javaScriptNamespaceInterfaces = new HashMap<String, Object>();
     private String APP_CACHE_DIRNAME;
     private int callID = 0;
-    private WebChromeClient webChromeClient;
+    private XWalkUIClient webChromeClient;
 
     private volatile boolean alertBoxBlock = true;
     private JavascriptCloseWindowListener javascriptCloseWindowListener = null;
@@ -248,20 +254,20 @@ public class DWebView extends WebView {
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     private void init() {
         APP_CACHE_DIRNAME = getContext().getFilesDir().getAbsolutePath() + "/webcache";
-        WebSettings settings = getSettings();
+        XWalkSettings settings = getSettings();
         settings.setDomStorageEnabled(true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true);
-            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+//            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true);
+//            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
         settings.setAllowFileAccess(false);
-        settings.setAppCacheEnabled(false);
+//        settings.setAppCacheEnabled(false);
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
         settings.setJavaScriptEnabled(true);
         settings.setLoadWithOverviewMode(true);
-        settings.setAppCachePath(APP_CACHE_DIRNAME);
+//        settings.setAppCachePath(APP_CACHE_DIRNAME);
         settings.setUseWideViewPort(true);
-        super.setWebChromeClient(mWebChromeClient);
+        super.setUIClient(mWebChromeClient);
         addInternalJavascriptObject();
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN) {
             super.addJavascriptInterface(innerJavascriptInterface, BRIDGE_NAME);
@@ -454,12 +460,12 @@ public class DWebView extends WebView {
     }
 
     @Override
-    public void reload() {
+    public void reload(final int mode) {
         runOnMainThread(new Runnable() {
             @Override
             public void run() {
                 callInfoList = new ArrayList<>();
-                DWebView.super.reload();
+                DWebView.super.reload(mode);
             }
         });
     }
@@ -580,370 +586,121 @@ public class DWebView extends WebView {
     }
 
     @Override
-    public void setWebChromeClient(WebChromeClient client) {
+    public void setUIClient(XWalkUIClient client) {
         webChromeClient = client;
     }
 
-    private WebChromeClient mWebChromeClient = new WebChromeClient() {
+    private XWalkUIClient mWebChromeClient = new XWalkUIClient(this) {
 
         @Override
-        public void onProgressChanged(WebView view, int newProgress) {
-            if (webChromeClient != null) {
-                webChromeClient.onProgressChanged(view, newProgress);
-            } else {
-                super.onProgressChanged(view, newProgress);
-            }
+        protected Object getBridge() {
+            return super.getBridge();
         }
 
         @Override
-        public void onReceivedTitle(WebView view, String title) {
-            if (webChromeClient != null) {
-                webChromeClient.onReceivedTitle(view, title);
-            } else {
-                super.onReceivedTitle(view, title);
-            }
+        public boolean onCreateWindowRequested(XWalkView view, InitiateBy initiator, ValueCallback<XWalkView> callback) {
+            return super.onCreateWindowRequested(view, initiator, callback);
         }
 
         @Override
-        public void onReceivedIcon(WebView view, Bitmap icon) {
-            if (webChromeClient != null) {
-                webChromeClient.onReceivedIcon(view, icon);
-            } else {
-                super.onReceivedIcon(view, icon);
-            }
+        public void onIconAvailable(XWalkView view, String url, Message startDownload) {
+            super.onIconAvailable(view, url, startDownload);
         }
 
         @Override
-        public void onReceivedTouchIconUrl(WebView view, String url, boolean precomposed) {
-            if (webChromeClient != null) {
-                webChromeClient.onReceivedTouchIconUrl(view, url, precomposed);
-            } else {
-                super.onReceivedTouchIconUrl(view, url, precomposed);
-            }
+        public void onReceivedIcon(XWalkView view, String url, Bitmap icon) {
+            super.onReceivedIcon(view, url, icon);
+        }
+
+        @Override
+        public void onRequestFocus(XWalkView view) {
+            super.onRequestFocus(view);
+        }
+
+        @Override
+        public void onJavascriptCloseWindow(XWalkView view) {
+            super.onJavascriptCloseWindow(view);
+        }
+
+        @Override
+        public boolean onJavascriptModalDialog(XWalkView view, JavascriptMessageType type, String url, String message, String defaultValue, XWalkJavascriptResult result) {
+            return super.onJavascriptModalDialog(view, type, url, message, defaultValue, result);
+        }
+
+        @Override
+        public void onFullscreenToggled(XWalkView view, boolean enterFullscreen) {
+            super.onFullscreenToggled(view, enterFullscreen);
+        }
+
+        @Override
+        public void openFileChooser(XWalkView view, ValueCallback<Uri> uploadFile, String acceptType, String capture) {
+            super.openFileChooser(view, uploadFile, acceptType, capture);
+        }
+
+        @Override
+        public void onScaleChanged(XWalkView view, float oldScale, float newScale) {
+            super.onScaleChanged(view, oldScale, newScale);
+        }
+
+        @Override
+        public boolean shouldOverrideKeyEvent(XWalkView view, KeyEvent event) {
+            return super.shouldOverrideKeyEvent(view, event);
+        }
+
+        @Override
+        public void onUnhandledKeyEvent(XWalkView view, KeyEvent event) {
+            super.onUnhandledKeyEvent(view, event);
+        }
+
+        @Override
+        public boolean onConsoleMessage(XWalkView view, String message, int lineNumber, String sourceId, ConsoleMessageType messageType) {
+            return super.onConsoleMessage(view, message, lineNumber, sourceId, messageType);
+        }
+
+        @Override
+        public void onReceivedTitle(XWalkView view, String title) {
+            super.onReceivedTitle(view, title);
+        }
+
+        @Override
+        public void onPageLoadStarted(XWalkView view, String url) {
+            super.onPageLoadStarted(view, url);
+        }
+
+        @Override
+        public void onPageLoadStopped(XWalkView view, String url, LoadStatus status) {
+            super.onPageLoadStopped(view, url, status);
+        }
+
+        @Override
+        public boolean onJsAlert(XWalkView view, String url, String message, XWalkJavascriptResult result) {
+            return super.onJsAlert(view, url, message, result);
+        }
+
+        @Override
+        public boolean onJsConfirm(XWalkView view, String url, String message, XWalkJavascriptResult result) {
+            return super.onJsConfirm(view, url, message, result);
+        }
+
+        @Override
+        public boolean onJsPrompt(XWalkView view, String url, String message, String defaultValue, XWalkJavascriptResult result) {
+            return super.onJsPrompt(view, url, message, defaultValue, result);
         }
 
         @Override
         public void onShowCustomView(View view, CustomViewCallback callback) {
-            if (webChromeClient != null) {
-                webChromeClient.onShowCustomView(view, callback);
-            } else {
-                super.onShowCustomView(view, callback);
-            }
+            super.onShowCustomView(view, callback);
         }
 
-        @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
-        public void onShowCustomView(View view, int requestedOrientation,
-                                     CustomViewCallback callback) {
-            if (webChromeClient != null) {
-                webChromeClient.onShowCustomView(view, requestedOrientation, callback);
-            } else {
-                super.onShowCustomView(view, requestedOrientation, callback);
-            }
+        @Override
+        public void onShowCustomView(View view, int requestedOrientation, CustomViewCallback callback) {
+            super.onShowCustomView(view, requestedOrientation, callback);
         }
 
         @Override
         public void onHideCustomView() {
-            if (webChromeClient != null) {
-                webChromeClient.onHideCustomView();
-            } else {
-                super.onHideCustomView();
-            }
+            super.onHideCustomView();
         }
-
-        @Override
-        public boolean onCreateWindow(WebView view, boolean isDialog,
-                                      boolean isUserGesture, Message resultMsg) {
-            if (webChromeClient != null) {
-                return webChromeClient.onCreateWindow(view, isDialog,
-                        isUserGesture, resultMsg);
-            }
-            return super.onCreateWindow(view, isDialog, isUserGesture, resultMsg);
-        }
-
-        @Override
-        public void onRequestFocus(WebView view) {
-            if (webChromeClient != null) {
-                webChromeClient.onRequestFocus(view);
-            } else {
-                super.onRequestFocus(view);
-            }
-        }
-
-        @Override
-        public void onCloseWindow(WebView window) {
-            if (webChromeClient != null) {
-                webChromeClient.onCloseWindow(window);
-            } else {
-                super.onCloseWindow(window);
-            }
-        }
-
-        @Override
-        public boolean onJsAlert(WebView view, String url, final String message, final JsResult result) {
-            if (!alertBoxBlock) {
-                result.confirm();
-            }
-            if (webChromeClient != null) {
-                if (webChromeClient.onJsAlert(view, url, message, result)) {
-                    return true;
-                }
-            }
-            Dialog alertDialog = new AlertDialog.Builder(getContext()).
-                    setMessage(message).
-                    setCancelable(false).
-                    setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.dismiss();
-                            if (alertBoxBlock) {
-                                result.confirm();
-                            }
-                        }
-                    })
-                    .create();
-            alertDialog.show();
-            return true;
-        }
-
-        @Override
-        public boolean onJsConfirm(WebView view, String url, String message,
-                                   final JsResult result) {
-            if (!alertBoxBlock) {
-                result.confirm();
-            }
-            if (webChromeClient != null && webChromeClient.onJsConfirm(view, url, message, result)) {
-                return true;
-            } else {
-                DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        if (alertBoxBlock) {
-                            if (which == Dialog.BUTTON_POSITIVE) {
-                                result.confirm();
-                            } else {
-                                result.cancel();
-                            }
-                        }
-                    }
-                };
-                new AlertDialog.Builder(getContext())
-                        .setMessage(message)
-                        .setCancelable(false)
-                        .setPositiveButton(android.R.string.ok, listener)
-                        .setNegativeButton(android.R.string.cancel, listener).show();
-                return true;
-
-            }
-
-        }
-
-        @Override
-        public boolean onJsPrompt(WebView view, String url, final String message,
-                                  String defaultValue, final JsPromptResult result) {
-
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN) {
-                String prefix = "_dsbridge=";
-                if (message.startsWith(prefix)) {
-                    result.confirm(innerJavascriptInterface.call(message.substring(prefix.length()), defaultValue));
-                    return true;
-                }
-            }
-
-            if (!alertBoxBlock) {
-                result.confirm();
-            }
-
-            if (webChromeClient != null && webChromeClient.onJsPrompt(view, url, message, defaultValue, result)) {
-                return true;
-            } else {
-                final EditText editText = new EditText(getContext());
-                editText.setText(defaultValue);
-                if (defaultValue != null) {
-                    editText.setSelection(defaultValue.length());
-                }
-                float dpi = getContext().getResources().getDisplayMetrics().density;
-                DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        if (alertBoxBlock) {
-                            if (which == Dialog.BUTTON_POSITIVE) {
-                                result.confirm(editText.getText().toString());
-                            } else {
-                                result.cancel();
-                            }
-                        }
-                    }
-                };
-                new AlertDialog.Builder(getContext())
-                        .setTitle(message)
-                        .setView(editText)
-                        .setCancelable(false)
-                        .setPositiveButton(android.R.string.ok, listener)
-                        .setNegativeButton(android.R.string.cancel, listener)
-                        .show();
-                FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT);
-                int t = (int) (dpi * 16);
-                layoutParams.setMargins(t, 0, t, 0);
-                layoutParams.gravity = Gravity.CENTER_HORIZONTAL;
-                editText.setLayoutParams(layoutParams);
-                int padding = (int) (15 * dpi);
-                editText.setPadding(padding - (int) (5 * dpi), padding, padding, padding);
-                return true;
-            }
-
-        }
-
-        @Override
-        public boolean onJsBeforeUnload(WebView view, String url, String message, JsResult result) {
-            if (webChromeClient != null) {
-                return webChromeClient.onJsBeforeUnload(view, url, message, result);
-            }
-            return super.onJsBeforeUnload(view, url, message, result);
-        }
-
-        @Override
-        public void onExceededDatabaseQuota(String url, String databaseIdentifier, long quota,
-                                            long estimatedDatabaseSize,
-                                            long totalQuota,
-                                            WebStorage.QuotaUpdater quotaUpdater) {
-            if (webChromeClient != null) {
-                webChromeClient.onExceededDatabaseQuota(url, databaseIdentifier, quota,
-                        estimatedDatabaseSize, totalQuota, quotaUpdater);
-            } else {
-                super.onExceededDatabaseQuota(url, databaseIdentifier, quota,
-                        estimatedDatabaseSize, totalQuota, quotaUpdater);
-            }
-        }
-
-        @Override
-        public void onReachedMaxAppCacheSize(long requiredStorage, long quota, WebStorage.QuotaUpdater quotaUpdater) {
-            if (webChromeClient != null) {
-                webChromeClient.onReachedMaxAppCacheSize(requiredStorage, quota, quotaUpdater);
-            }
-            super.onReachedMaxAppCacheSize(requiredStorage, quota, quotaUpdater);
-        }
-
-        @Override
-        public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
-            if (webChromeClient != null) {
-                webChromeClient.onGeolocationPermissionsShowPrompt(origin, callback);
-            } else {
-                super.onGeolocationPermissionsShowPrompt(origin, callback);
-            }
-        }
-
-        @Override
-        public void onGeolocationPermissionsHidePrompt() {
-            if (webChromeClient != null) {
-                webChromeClient.onGeolocationPermissionsHidePrompt();
-            } else {
-                super.onGeolocationPermissionsHidePrompt();
-            }
-        }
-
-
-        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-        public void onPermissionRequest(PermissionRequest request) {
-            if (webChromeClient != null) {
-                webChromeClient.onPermissionRequest(request);
-            } else {
-                super.onPermissionRequest(request);
-            }
-        }
-
-
-        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-        @Override
-        public void onPermissionRequestCanceled(PermissionRequest request) {
-            if (webChromeClient != null) {
-                webChromeClient.onPermissionRequestCanceled(request);
-            } else {
-                super.onPermissionRequestCanceled(request);
-            }
-        }
-
-        @Override
-        public boolean onJsTimeout() {
-            if (webChromeClient != null) {
-                return webChromeClient.onJsTimeout();
-            }
-            return super.onJsTimeout();
-        }
-
-        @Override
-        public void onConsoleMessage(String message, int lineNumber, String sourceID) {
-            if (webChromeClient != null) {
-                webChromeClient.onConsoleMessage(message, lineNumber, sourceID);
-            } else {
-                super.onConsoleMessage(message, lineNumber, sourceID);
-            }
-        }
-
-        @Override
-        public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
-            if (webChromeClient != null) {
-                return webChromeClient.onConsoleMessage(consoleMessage);
-            }
-            return super.onConsoleMessage(consoleMessage);
-        }
-
-        @Override
-        public Bitmap getDefaultVideoPoster() {
-
-            if (webChromeClient != null) {
-                return webChromeClient.getDefaultVideoPoster();
-            }
-            return super.getDefaultVideoPoster();
-        }
-
-        @Override
-        public View getVideoLoadingProgressView() {
-            if (webChromeClient != null) {
-                return webChromeClient.getVideoLoadingProgressView();
-            }
-            return super.getVideoLoadingProgressView();
-        }
-
-        @Override
-        public void getVisitedHistory(ValueCallback<String[]> callback) {
-            if (webChromeClient != null) {
-                webChromeClient.getVisitedHistory(callback);
-            } else {
-                super.getVisitedHistory(callback);
-            }
-        }
-
-
-        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-        public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback,
-                                         FileChooserParams fileChooserParams) {
-            if (webChromeClient != null) {
-                return webChromeClient.onShowFileChooser(webView, filePathCallback, fileChooserParams);
-            }
-            return super.onShowFileChooser(webView, filePathCallback, fileChooserParams);
-        }
-
-
-        @Keep
-        @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-        public void openFileChooser(ValueCallback valueCallback, String acceptType) {
-            if (webChromeClient instanceof FileChooser) {
-                ((FileChooser) webChromeClient).openFileChooser(valueCallback, acceptType);
-            }
-        }
-
-
-        @Keep
-        @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
-        public void openFileChooser(ValueCallback<Uri> valueCallback,
-                                    String acceptType, String capture) {
-            if (webChromeClient instanceof FileChooser) {
-                ((FileChooser) webChromeClient).openFileChooser(valueCallback, acceptType, capture);
-            }
-        }
-
     };
 
     @Override

@@ -1,10 +1,10 @@
 package wendu.jsbdemo;
 
 import android.os.CountDownTimer;
-import android.webkit.JavascriptInterface;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.xwalk.core.JavascriptInterface;
 
 import wendu.dsbridge.CompletionHandler;
 

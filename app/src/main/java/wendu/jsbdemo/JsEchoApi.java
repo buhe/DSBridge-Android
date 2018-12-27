@@ -1,8 +1,8 @@
 package wendu.jsbdemo;
 
-import android.webkit.JavascriptInterface;
 
 import org.json.JSONException;
+import org.xwalk.core.JavascriptInterface;
 
 import wendu.dsbridge.CompletionHandler;
 
